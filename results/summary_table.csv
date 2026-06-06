@@ -1,0 +1,10 @@
+algorithm,reward,n_trials,mean_reward,total_reward,ctr,purchase_rate,gini_index,match_rate
+Random,R1 Binary,32151,0.0142,456.89,0.7628,0.7628,0.0244,0.0206
+Random,R2 Weighted,32151,0.1281,4119.6,1.0,0.7628,0.0244,0.0206
+Random,R3 Max-Stage,32151,0.1921,6176.67,1.0,0.7628,0.0244,0.0206
+LinUCB,R1 Binary,32151,0.0023,72.7,0.1403,0.1403,0.8922,0.0
+LinUCB,R2 Weighted,32151,0.1042,3351.33,1.0,0.1088,0.9033,0.0
+LinUCB,R3 Max-Stage,32151,0.1912,6147.06,1.0,0.3795,0.8406,0.0
+DivLinUCB,R1 Binary,32151,0.0021,66.95,0.1446,0.1446,0.892,0.0
+DivLinUCB,R2 Weighted,32151,0.1044,3356.72,1.0,0.1351,0.8986,0.0
+DivLinUCB,R3 Max-Stage,32151,0.1623,5218.63,1.0,0.2798,0.8531,0.0
