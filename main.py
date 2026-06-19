@@ -8,7 +8,7 @@ Usage:
 
 Produces:
     results/summary_table.csv        — CTR / Gini / Purchase Rate for all combos
-    results/ctr_comparison.png       — bar chart: CTR per (algo, reward)
+    results/mean_rewards_comparison.png       — bar chart: CTR per (algo, reward)
     results/gini_comparison.png      — bar chart: Gini index per (algo, reward)
     results/learning_curves.png      — avg reward over time per (algo, reward)
     results/cumulative_rewards.png   — cumulative reward over time
@@ -148,7 +148,7 @@ def main():
     # ------------------------------------------------------------------
     # 5. Plots
     # ------------------------------------------------------------------
-    _plot_bar_metric(results, "mean_reward",   "Mean Reward (chosen arm)",    "ctr_comparison.png")
+    _plot_bar_metric(results, "mean_reward",   "Mean Reward (chosen arm)",    "mean_rewards_comparison.png")
     _plot_bar_metric(results, "gini_index",    "Gini Index (↓ = more diverse)", "gini_comparison.png")
     _plot_bar_metric(results, "purchase_rate", "Purchase Rate",               "purchase_rate.png")
     _plot_learning_curves(results)
@@ -163,66 +163,76 @@ def main():
 # Plot helpers
 # =============================================================================
 
-def _result_label(r: dict) -> str:
-    return f"{r['algorithm']}\n{REWARD_LABELS[r['reward']]}"
-
+REWARD_COLORS = {
+    "reward_binary":   "#e63946",   # red
+    "reward_weighted": "#f4a261",   # orange
+    "reward_maxstage": "#2a9d8f",   # teal
+}
 
 def _plot_bar_metric(results: list, metric: str, ylabel: str, filename: str):
-    """Grouped bar chart comparing a single metric across all (algo, reward) combos."""
+    """
+    One subplot per algorithm, bars compare reward functions.
+    """
     algos   = ["Random", "LinUCB", "DivLinUCB"]
     rewards = ["reward_binary", "reward_weighted", "reward_maxstage"]
     x       = np.arange(len(rewards))
-    width   = 0.25
+    width   = 0.55
 
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5), sharey=True)
 
-    for i, algo in enumerate(algos):
+    for ax, algo in zip(axes, algos):
         vals = [
             next((r[metric] for r in results
                   if r["algorithm"] == algo and r["reward"] == rw), 0.0)
             for rw in rewards
         ]
         bars = ax.bar(
-            x + i * width, vals, width,
-            label=algo, color=ALGO_COLORS[algo], alpha=0.88, edgecolor="white"
+            x, vals, width,
+            color=[REWARD_COLORS[rw] for rw in rewards],
+            alpha=0.88, edgecolor="white"
         )
-        # Value labels on bars
         for bar, v in zip(bars, vals):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 0.001,
-                f"{v:.4f}", ha="center", va="bottom", fontsize=7.5
+                bar.get_height() + max(vals) * 0.01,
+                f"{v:.4f}", ha="center", va="bottom", fontsize=8
             )
+        ax.set_title(algo, fontsize=13, fontweight="bold")
+        ax.set_xticks(x)
+        ax.set_xticklabels([REWARD_LABELS[rw] for rw in rewards], fontsize=9)
+        ax.set_ylabel(ylabel if algo == "Random" else "")
 
-    ax.set_xticks(x + width)
-    ax.set_xticklabels([REWARD_LABELS[r] for r in rewards])
-    ax.set_ylabel(ylabel)
-    ax.set_title(f"{ylabel} by Algorithm and Reward Function")
-    ax.legend(title="Algorithm")
+    # Shared legend
+    from matplotlib.patches import Patch
+    handles = [Patch(color=REWARD_COLORS[rw], label=REWARD_LABELS[rw]) for rw in rewards]
+    fig.legend(handles=handles, title="Reward Function",
+               loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.08))
+    fig.suptitle(f"{ylabel} — Comparison by Reward Function", fontsize=13, y=1.02)
     fig.tight_layout()
-    fig.savefig(os.path.join(RES_DIR, filename), dpi=150)
+    fig.savefig(os.path.join(RES_DIR, filename), dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved: {filename}")
 
 
 def _plot_learning_curves(results: list):
-    """Average reward over time (smoothed) — one subplot per reward function."""
+    """One subplot per algorithm, lines compare reward functions."""
+    algos   = ["Random", "LinUCB", "DivLinUCB"]
     rewards = ["reward_binary", "reward_weighted", "reward_maxstage"]
+
     fig, axes = plt.subplots(1, 3, figsize=(15, 4), sharey=False)
 
-    for ax, rw in zip(axes, rewards):
-        for r in results:
-            if r["reward"] != rw:
+    for ax, algo in zip(axes, algos):
+        for rw in rewards:
+            r = next((x for x in results
+                      if x["algorithm"] == algo and x["reward"] == rw), None)
+            if not r or not r["avg_reward_curve"]:
                 continue
-            curve = r["avg_reward_curve"]
-            if not curve:
-                continue
-            ax.plot(curve, label=r["algorithm"],
-                    color=ALGO_COLORS[r["algorithm"]], linewidth=1.6)
+            ax.plot(r["avg_reward_curve"], label=REWARD_LABELS[rw],
+                    color=REWARD_COLORS[rw], linewidth=1.8)
 
-        ax.set_title(REWARD_LABELS[rw])
+        ax.set_title(algo, fontsize=13, fontweight="bold")
         ax.set_xlabel("Accepted Trials")
-        ax.set_ylabel("Avg Reward (rolling)")
+        ax.set_ylabel("Avg Reward (rolling)" if algo == "Random" else "")
         ax.legend(fontsize=8)
 
     fig.suptitle("Learning Curves — Average Reward Over Time", fontsize=13, y=1.02)
@@ -233,23 +243,24 @@ def _plot_learning_curves(results: list):
 
 
 def _plot_cumulative_rewards(results: list):
-    """Cumulative reward curves — one subplot per reward function."""
+    """One subplot per algorithm, lines compare reward functions."""
+    algos   = ["Random", "LinUCB", "DivLinUCB"]
     rewards = ["reward_binary", "reward_weighted", "reward_maxstage"]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-    for ax, rw in zip(axes, rewards):
-        for r in results:
-            if r["reward"] != rw:
-                continue
-            curve = r["cumulative_reward_curve"]
-            if not curve:
-                continue
-            ax.plot(curve, label=r["algorithm"],
-                    color=ALGO_COLORS[r["algorithm"]], linewidth=1.6)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4), sharey=False)
 
-        ax.set_title(REWARD_LABELS[rw])
+    for ax, algo in zip(axes, algos):
+        for rw in rewards:
+            r = next((x for x in results
+                      if x["algorithm"] == algo and x["reward"] == rw), None)
+            if not r or not r["cumulative_reward_curve"]:
+                continue
+            ax.plot(r["cumulative_reward_curve"], label=REWARD_LABELS[rw],
+                    color=REWARD_COLORS[rw], linewidth=1.8)
+
+        ax.set_title(algo, fontsize=13, fontweight="bold")
         ax.set_xlabel("Accepted Trials")
-        ax.set_ylabel("Cumulative Reward")
+        ax.set_ylabel("Cumulative Reward" if algo == "Random" else "")
         ax.legend(fontsize=8)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(
             lambda x, _: f"{x:,.0f}"
@@ -263,34 +274,27 @@ def _plot_cumulative_rewards(results: list):
 
 
 def _plot_recommendation_histograms(results: list, arm_pool: list):
-    """
-    Distribution of recommendation counts across items.
-    Mirrors Figure 4 / Fig 5-7 from Semenov et al.
-    Shows Random vs LinUCB vs DivLinUCB for the Binary reward.
-    """
-    target_reward = "reward_binary"
+    """One subplot per algorithm, bars show item distribution."""
     algos = ["Random", "LinUCB", "DivLinUCB"]
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4), sharey=False)
 
     for ax, algo in zip(axes, algos):
-        r = next(
-            (x for x in results
-             if x["algorithm"] == algo and x["reward"] == target_reward),
-            None
-        )
+        # Use R3 Max-Stage for the histogram (most informative reward)
+        r = next((x for x in results
+                  if x["algorithm"] == algo and x["reward"] == "reward_maxstage"), None)
         if r is None:
             continue
-
         counts = [r["arm_counts"].get(a, 0) for a in arm_pool]
         ax.bar(range(len(arm_pool)), sorted(counts, reverse=True),
                color=ALGO_COLORS[algo], alpha=0.85, edgecolor="none")
-        ax.set_title(f"{algo}  (Gini={r['gini_index']:.3f})")
+        ax.set_title(f"{algo}  (Gini={r['gini_index']:.3f})",
+                     fontsize=12, fontweight="bold")
         ax.set_xlabel("Item Rank (by rec. count)")
-        ax.set_ylabel("Recommendation Count")
+        ax.set_ylabel("Recommendation Count" if algo == "Random" else "")
 
     fig.suptitle(
-        "Item Recommendation Distribution — R1 Binary Reward\n"
+        "Item Recommendation Distribution — R3 Max-Stage Reward\n"
         "(lower Gini = more uniform = more diverse)",
         fontsize=12, y=1.03
     )
