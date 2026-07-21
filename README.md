@@ -1,4 +1,4 @@
-# rl-ecommerce-reward-comparison
+# RL-ecommerce-reward-comparison
 
 Comparing reward formulations for contextual bandit-based product recommendation on the RetailRocket e-commerce dataset.
 
@@ -83,6 +83,7 @@ rl-ecommerce-reward-comparison/
 ├── main.py                        # Run full experiment + save all plots
 ├── download_data.py               # Auto-download RetailRocket from Kaggle
 ├── requirements.txt
+├── Presentation.pdf               # The Project Presentation
 ├── src/
 │   └── preprocessing.py          # Load & prepare dataset, build PCA context vectors
 ├── algorithms/
