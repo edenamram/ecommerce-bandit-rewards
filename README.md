@@ -48,15 +48,29 @@ All algorithms are taken directly from Semenov et al. (2022) and Li et al. (2010
 
 ## Key Findings
 
-| Reward | Best Algorithm | Why |
-|--------|---------------|-----|
-| R1 Binary | Random | Signal too sparse (1.35% purchase rate) — LinUCB cannot learn effectively |
-| R2 Weighted | Random (marginal) | Denser signal but still noisy; algorithms concentrate on wrong items |
-| **R3 Max-Stage** | **LinUCB** | Richest signal — rewards full session intent, allowing meaningful learning |
+<p align="center">
+  <img src="results/cumulative_rewards.png" width="48%">
+  <img src="results/mean_rewards_comparison.png" width="48%">
+</p>
 
-**Main conclusion:** R3 Max-Stage is the best reward formulation for e-commerce bandits. It provides a dense enough learning signal by rewarding the deepest funnel stage reached, rather than waiting for rare purchase events.
+<p align="center">
+  <img src="results/purchase_rate.png" width="48%">
+  <img src="results/gini_comparison.png" width="48%">
+</p>
 
-**Diversity tradeoff:** DivLinUCB achieves lower Gini than LinUCB on R3 (0.853 vs 0.841), confirming the reward–diversity tradeoff reported in Semenov et al. — more diverse recommendations come at a small cost to purchase rate.
+<p align="center">
+  <img src="results/learning_curves.png" width="48%">
+  <img src="results/summary_table.png" width="48%">
+</p>
+
+### Key observations
+
+- **Max-Stage** best reflects the sequential nature of the e-commerce conversion funnel.
+- It prioritizes the deepest user interaction, providing a more focused reward signal.
+- **Weighted Reward** incorporates multiple behaviors, but treating all stages simultaneously may reduce the importance of the final conversion event.
+- **Binary Reward** suffers from sparse purchase feedback, limiting learning efficiency.
+
+**Main conclusion:** The **Max-Stage** reward provides the most informative learning signal for contextual bandit algorithms by emphasizing the deepest stage reached in the customer journey while avoiding the sparsity of purchase-only rewards.
 
 ---
 
@@ -155,7 +169,7 @@ The dataset downloads automatically on first run. Results and plots are saved to
 | `results/purchase_rate.png` | Purchase rate of chosen items |
 | `results/learning_curves.png` | Average reward over time (evaluation phase) |
 | `results/cumulative_rewards.png` | Cumulative reward over time |
-| `results/recommendation_hist.png` | Item recommendation distribution per algorithm |
+
 
 ---
 
